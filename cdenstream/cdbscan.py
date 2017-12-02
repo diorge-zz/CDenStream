@@ -68,6 +68,21 @@ class Payload:
         return f'{self.index}:{self.point}'
 
 
+class Cluster:
+    def __init__(self, kind, points=None):
+        self.kind = kind
+        if points is None:
+            self.points = tuple()
+        else:
+            self.points = points
+
+    def __iter__(self):
+        return iter(self.points)
+
+    def __repr__(self):
+        return repr(self.points)
+
+
 def cdbscan(dataset, epsilon=0.01, minpts=5, mustlink=None, cannotlink=None):
     """
     Step 1 -> Partition the data space with a KD-Tree
@@ -104,45 +119,59 @@ def cdbscan(dataset, epsilon=0.01, minpts=5, mustlink=None, cannotlink=None):
     end
     return each ALPHA_CLUSTER and each remaining LOCAL_CLUSTER
     """
-    localclusters = []
-    alphaclusters = []
+    allclusters = {}
 
-    # 0 = unlabeled, 1 = core, -1 = noise
-    labels = np.zeros((dataset.shape[0],), dtype=np.int)
+    if mustlink is None:
+        mustlink = set()
+
+    if cannotlink is None:
+        cannotlink = set()
 
     # clusters: -1 for unclustered, otherwise the id of the cluster
     # use clusters[point_id] to find out which cluster a point belongs to
-    # use cluster_to_point[cluster_id] to find the points a cluster contains
     clusters = np.empty((dataset.shape[0],), dtype=np.int)
     clusters.fill(-1)
-    cluster_to_point = {}
     nextcluster = 0
 
     densityreachable = compute_density_reachable_points(dataset, epsilon)
 
     for index, point in enumerate(dataset):
         # if point is yet unlabeled
-        if labels[index] == 0:
+        if clusters[index] == -1:
             dr = densityreachable[index]
             if len(dr) < minpts:
                 # noise point
-                labels[index] = -1
+                pass
             elif not cluster_respect_cannot_link_constraints(dr, cannotlink):
                 for node in dr:
-                    localclusters.append([node])
+                    clusterpoints = (node,)
+                    allclusters[nextcluster] = Cluster('local', clusterpoints)
                     clusters[node] = nextcluster
-                    cluster_to_point[nextcluster] = localclusters[-1]
                     nextcluster += 1
             else:
                 # core point
                 ldr = list(dr)
-                labels[ldr] = 1
-                localclusters.append(ldr)
+                clusterpoints = tuple(ldr)
+                allclusters[nextcluster] = Cluster('local', clusterpoints)
                 clusters[ldr] = nextcluster
-                cluster_to_point[nextcluster] = localclusters[-1]
                 nextcluster += 1
 
-    return localclusters
+    # Step 3a: merge must-link constraints
+    for ml1, ml2 in mustlink:
+        c1 = clusters[ml1]
+        c2 = clusters[ml2]
+        points_of_c1 = allclusters[c1]
+        points_of_c2 = allclusters[c2]
+        print(c1)
+        del allclusters[c1]
+        del allclusters[c2]
+        merged = Cluster('alpha', tuple(set(points_of_c1).union(set(points_of_c2))))
+        allclusters[nextcluster] = merged
+        for point in merged:
+            clusters[point] = nextcluster
+        nextcluster += 1
+
+    return [x.points for x in allclusters.values()]
 
 
 def run_test():
