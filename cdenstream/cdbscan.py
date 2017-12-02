@@ -1,8 +1,8 @@
 from itertools import combinations
 from sklearn.metrics.pairwise import pairwise_distances
-from sklearn.neighbors import KDTree
 from .constraint import *
 import numpy as np
+import kdtree
 
 NEIGHBORHOOD_MIN_POINTS = 50
 NEIGHBORHOOD_RADIUS = 2
@@ -34,6 +34,24 @@ def compute_density_reachable_points(dataset, point_index, maximum_distance):
         new_points_to_explore = old_reachable_point_count < len(density_reachable)
 
     return density_reachable
+
+
+class Payload:
+    """Tuple emulation that carry the index of the point
+    """
+
+    def __init__(self, point, index):
+        self.point = point
+        self.index = index
+
+    def __len__(self):
+        return len(self.point)
+
+    def __getitem__(self, i):
+        return self.point[i]
+
+    def __repr__(self):
+        return f'{self.index}:{self.point}'
 
 
 def cdbscan(dataset, epsilon=0.01, minpts=5, mustlink=None, cannotlink=None):
@@ -72,7 +90,36 @@ def cdbscan(dataset, epsilon=0.01, minpts=5, mustlink=None, cannotlink=None):
     end
     return each ALPHA_CLUSTER and each remaining LOCAL_CLUSTER
     """
-    return None
+    data = []
+    for index, point in enumerate(dataset):
+        data.append(Payload(point, index))
+    tree = kdtree.create(data)
+
+    localclusters = []
+    alphaclusters = []
+    # 0 = unlabeled, 1 = core, -1 = noise
+    labels = np.zeros((dataset.shape[0],), dtype=np.int)
+
+    for v in tree.inorder():
+        # if point is yet unlabeled
+        if labels[v.data.index] == 0:
+            dr = compute_density_reachable_points(dataset=dataset,
+                                                  point_index=v.data.index,
+                                                  maximum_distance=epsilon)
+            if len(dr) < minpts:
+                # noise point
+                labels[v.data.index] = -1
+            elif not cluster_respect_cannot_link_constraints(dr, cannotlink):
+                for node in dr:
+                    localclusters.append([node])
+            else:
+                # core point
+                ldr = list(dr)
+                labels[ldr] = 1
+                localclusters.append(ldr)
+
+    print(localclusters)
+    return localclusters
 
 
 def run_test():
