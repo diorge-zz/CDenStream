@@ -110,6 +110,10 @@ def cdbscan(dataset, epsilon=0.01, minpts=5, mustlink=None, cannotlink=None):
     # 0 = unlabeled, 1 = core, -1 = noise
     labels = np.zeros((dataset.shape[0],), dtype=np.int)
 
+    # clusters: -1 for unclustered, otherwise the id of the cluster
+    clusters = np.empty((dataset.shape[0],), dtype=np.int).fill(-1)
+    nextcluster = 0
+
     densityreachable = compute_density_reachable_points(dataset, epsilon)
 
     for index, point in enumerate(dataset):
