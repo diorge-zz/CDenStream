@@ -1,7 +1,7 @@
 from itertools import combinations
 from sklearn.metrics.pairwise import pairwise_distances
 from sklearn.neighbors import KDTree
-from constraint import *
+from .constraint import *
 import numpy as np
 
 NEIGHBORHOOD_MIN_POINTS = 50
@@ -34,6 +34,10 @@ def compute_density_reachable_points(dataset, point_index, maximum_distance):
         new_points_to_explore = old_reachable_point_count < len(density_reachable)
 
     return density_reachable
+
+
+def cdbscan(dataset, epsilon=0.01, minpts=5, mustlink=None, cannotlink=None):
+    return None
 
 
 def run_test():
