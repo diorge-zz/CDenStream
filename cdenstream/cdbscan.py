@@ -132,7 +132,75 @@ def cdbscan(dataset, epsilon=0.01, minpts=5, mustlink=None, cannotlink=None):
                 labels[ldr] = 1
                 localclusters.append(ldr)
 
-    return localclusters
+    # Step 3b - Build the final clusters
+    def compute_cluster_centroid(dataset, cluster):
+        """
+        Clusters são representados como coleções de indices.
+        :param dataset: é uma matriz.
+        :param cluster: é uma coleção de índices.
+        :return: um vetor.
+        """
+        points = [dataset[p] for p in cluster]
+        return np.mean(points)
+
+    def compute_reachable_clusters(target_cluster, list_of_clusters, reachability_dictionary):
+        """
+        Clusters são representados como coleções de indices de elementos em um dataset.
+        :param target_cluster: é um cluster, logo, é uma coleção de índices de elementos de um dataset.
+        :param list_of_clusters: é uma __LISTA__, de clusters. Isto é, um tipo que associa a cada indices (de clusters)
+        a coleções de indices (de elementos de um dataset).
+        :param reachability_dictionary: é um dicionario que associa a cada indice (de elemento de um dataset) uma
+        coleção de indices (de elementos de um dataset).
+        :return: uma coleção de coleção de índices dos clusters em list_of_clusters que são reachable pelo
+        target_cluster.
+        """
+        assert isinstance(o=list_of_clusters, t=list)
+
+        reachable_sets_of_points = [reachability_dictionary(p) for p in target_cluster]
+        reachable_points = set()
+        for s in reachable_sets_of_points:
+            reachable_points.update(s)
+
+        reachable_clusters_indexes = list()
+        for cluster_index, cluster_points in enumerate(list_of_clusters):
+            for p in cluster_points:
+                if p in reachable_points:
+                    reachable_clusters_indexes.add(cluster_index)
+                    break
+
+        return reachable_clusters_indexes
+
+    list_of_alpha_clusters = list(alphaclusters)
+    list_of_local_clusters = list(localclusters)
+    clusters_changed = True
+    while clusters_changed:
+        clusters_changed = False
+        old_list_of_local_clusters = list(list_of_local_clusters)
+
+        for index_of_lc, elements_of_lc in enumerate(old_list_of_local_clusters):
+            indexes_of_reachable_alpha = compute_reachable_clusters(target_cluster=elements_of_lc,
+                                                                    list_of_clusters=list_of_alpha_clusters,
+                                                                    reachability_dictionary=densityreachable)
+            centroids_of_reachable_alpha = [compute_cluster_centroid(dataset=dataset, cluster=list_of_alpha_clusters[i])
+                                            for i in indexes_of_reachable_alpha]
+
+            lc_centroid = compute_cluster_centroid(dataset=dataset, cluster=elements_of_lc)
+            dist_to_reachable_alpha = [np.linalg.norm(lc_centroid - alpha_centroid)
+                                       for alpha_centroid in centroids_of_reachable_alpha]
+
+            index_of_closest_alpha_cluster = np.argmin(dist_to_reachable_alpha)[0]
+
+            merged_cluster = set(elements_of_lc)
+            merged_cluster.update(list_of_alpha_clusters[index_of_closest_alpha_cluster])
+            if cluster_respect_cannot_link_constraints(cluster=merged_cluster, cl_constraints=cannotlink):
+                del list_of_local_clusters[elements_of_lc]
+                del list_of_alpha_clusters[list_of_alpha_clusters[index_of_closest_alpha_cluster]]
+                list_of_alpha_clusters.append(merged_cluster)
+                break
+
+    # return each ALPHA_CLUSTER and each remaining LOCAL_CLUSTER
+    # ? Como prefere?
+    return None
 
 
 def run_test():
