@@ -111,7 +111,11 @@ def cdbscan(dataset, epsilon=0.01, minpts=5, mustlink=None, cannotlink=None):
     labels = np.zeros((dataset.shape[0],), dtype=np.int)
 
     # clusters: -1 for unclustered, otherwise the id of the cluster
-    clusters = np.empty((dataset.shape[0],), dtype=np.int).fill(-1)
+    # use clusters[point_id] to find out which cluster a point belongs to
+    # use cluster_to_point[cluster_id] to find the points a cluster contains
+    clusters = np.empty((dataset.shape[0],), dtype=np.int)
+    clusters.fill(-1)
+    cluster_to_point = {}
     nextcluster = 0
 
     densityreachable = compute_density_reachable_points(dataset, epsilon)
@@ -126,11 +130,17 @@ def cdbscan(dataset, epsilon=0.01, minpts=5, mustlink=None, cannotlink=None):
             elif not cluster_respect_cannot_link_constraints(dr, cannotlink):
                 for node in dr:
                     localclusters.append([node])
+                    clusters[node] = nextcluster
+                    cluster_to_point[nextcluster] = localclusters[-1]
+                    nextcluster += 1
             else:
                 # core point
                 ldr = list(dr)
                 labels[ldr] = 1
                 localclusters.append(ldr)
+                clusters[ldr] = nextcluster
+                cluster_to_point[nextcluster] = localclusters[-1]
+                nextcluster += 1
 
     return localclusters
 
