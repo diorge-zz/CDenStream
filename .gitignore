@@ -2,3 +2,4 @@
 .gitattributes
 __pycache__
 .cache/
+.python-version
