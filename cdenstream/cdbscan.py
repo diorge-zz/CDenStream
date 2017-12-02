@@ -3,7 +3,6 @@ from sklearn.metrics.pairwise import pairwise_distances
 from sklearn.neighbors import KDTree
 from .constraint import *
 import numpy as np
-import kdtree
 
 NEIGHBORHOOD_MIN_POINTS = 50
 NEIGHBORHOOD_RADIUS = 2
@@ -105,24 +104,21 @@ def cdbscan(dataset, epsilon=0.01, minpts=5, mustlink=None, cannotlink=None):
     end
     return each ALPHA_CLUSTER and each remaining LOCAL_CLUSTER
     """
-    data = []
-    for index, point in enumerate(dataset):
-        data.append(Payload(point, index))
-    tree = kdtree.create(data)
-
     localclusters = []
     alphaclusters = []
+
     # 0 = unlabeled, 1 = core, -1 = noise
     labels = np.zeros((dataset.shape[0],), dtype=np.int)
+
     densityreachable = compute_density_reachable_points(dataset, epsilon)
 
-    for v in tree.inorder():
+    for index, point in enumerate(dataset):
         # if point is yet unlabeled
-        if labels[v.data.index] == 0:
-            dr = densityreachable[v.data.index]
+        if labels[index] == 0:
+            dr = densityreachable[index]
             if len(dr) < minpts:
                 # noise point
-                labels[v.data.index] = -1
+                labels[index] = -1
             elif not cluster_respect_cannot_link_constraints(dr, cannotlink):
                 for node in dr:
                     localclusters.append([node])
@@ -132,7 +128,6 @@ def cdbscan(dataset, epsilon=0.01, minpts=5, mustlink=None, cannotlink=None):
                 labels[ldr] = 1
                 localclusters.append(ldr)
 
-    print(localclusters)
     return localclusters
 
 
