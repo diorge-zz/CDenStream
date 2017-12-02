@@ -162,7 +162,6 @@ def cdbscan(dataset, epsilon=0.01, minpts=5, mustlink=None, cannotlink=None):
         c2 = clusters[ml2]
         points_of_c1 = allclusters[c1]
         points_of_c2 = allclusters[c2]
-        print(c1)
         del allclusters[c1]
         del allclusters[c2]
         merged = Cluster('alpha', tuple(set(points_of_c1).union(set(points_of_c2))))
@@ -172,22 +171,3 @@ def cdbscan(dataset, epsilon=0.01, minpts=5, mustlink=None, cannotlink=None):
         nextcluster += 1
 
     return [x.points for x in allclusters.values()]
-
-
-def run_test():
-    X = [
-        (0, 0),
-        (0, 1),
-        (1, 0),
-        (10, 0),
-        (11, 1),
-        (9, 0)]
-    X = np.array(X)
-
-    dr = compute_density_reachable_points(dataset=X,
-                                          maximum_distance=NEIGHBORHOOD_RADIUS)
-    print(dr)
-
-
-if __name__ == "__main__":
-    run_test()
