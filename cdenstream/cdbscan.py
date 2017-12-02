@@ -1,11 +1,7 @@
-from itertools import combinations
 from sklearn.metrics.pairwise import pairwise_distances
 from sklearn.neighbors import KDTree
 from .constraint import *
 import numpy as np
-
-NEIGHBORHOOD_MIN_POINTS = 50
-NEIGHBORHOOD_RADIUS = 2
 
 
 def compute_density_reachable_points(dataset, maximum_distance):
