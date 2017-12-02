@@ -1,39 +1,53 @@
 from itertools import combinations
 from sklearn.metrics.pairwise import pairwise_distances
-from .constraint import *
+from sklearn.neighbors import KDTree
+# from .constraint import *
 import numpy as np
-import kdtree
 
 NEIGHBORHOOD_MIN_POINTS = 50
 NEIGHBORHOOD_RADIUS = 2
 
 
-def compute_density_reachable_points(dataset, point_index, maximum_distance):
+def compute_density_reachable_points(dataset, maximum_distance):
     element_count = dataset.shape[0]
-    distances = pairwise_distances(X=dataset, metric="euclidean")
+    kdtree = KDTree(dataset, metric="euclidean")
+    neighborhoods = kdtree.query_radius(X=dataset, r=maximum_distance)
+    density_reachable = dict()
+    for element_index in range(element_count):
+        density_reachable[element_index] = tuple(neighborhoods[element_index])
+
+    return density_reachable
+
+
+def compute_density_connectable_points(distances, point_index, maximum_distance):
+    """
+    distances should be a sklearn.metrics.pairwise.pairwise_distances matrix
+    """
 
     def compute_neighbors(element_index):
         return tuple(i for i in range(element_count)
-                     if distances[point_index, i] <= maximum_distance)
+                     if distances[element_index, i] <= maximum_distance)
+
+    element_count = distances.shape[0]
 
     # Storing points already visited to prevent infinite loops
     points_already_visited = set()
 
     # The initial set of density_reachable points is the neighborhood of
     # the point
-    density_reachable = set(compute_neighbors(point_index))
+    density_connectable = set(compute_neighbors(point_index))
 
     new_points_to_explore = True
     while new_points_to_explore:
-        old_reachable_point_count = len(density_reachable)
-        reachable_neighborhoods = [compute_neighbors(i) for i in density_reachable
+        old_reachable_point_count = len(density_connectable)
+        reachable_neighborhoods = [compute_neighbors(i) for i in density_connectable
                                    if i not in points_already_visited]
-        points_already_visited.update(density_reachable)
+        points_already_visited.update(density_connectable)
         for neighborhood in reachable_neighborhoods:
-            density_reachable.update(neighborhood)
-        new_points_to_explore = old_reachable_point_count < len(density_reachable)
+            density_connectable.update(neighborhood)
+        new_points_to_explore = old_reachable_point_count < len(density_connectable)
 
-    return density_reachable
+    return density_connectable
 
 
 class Payload:
@@ -103,9 +117,9 @@ def cdbscan(dataset, epsilon=0.01, minpts=5, mustlink=None, cannotlink=None):
     for v in tree.inorder():
         # if point is yet unlabeled
         if labels[v.data.index] == 0:
-            dr = compute_density_reachable_points(dataset=dataset,
-                                                  point_index=v.data.index,
-                                                  maximum_distance=epsilon)
+            dr = compute_density_reachable_points_old(dataset=dataset,
+                                                      point_index=v.data.index,
+                                                      maximum_distance=epsilon)
             if len(dr) < minpts:
                 # noise point
                 labels[v.data.index] = -1
@@ -133,7 +147,6 @@ def run_test():
     X = np.array(X)
 
     dr = compute_density_reachable_points(dataset=X,
-                                          point_index=0,
                                           maximum_distance=NEIGHBORHOOD_RADIUS)
     print(dr)
 
