@@ -37,6 +37,41 @@ def compute_density_reachable_points(dataset, point_index, maximum_distance):
 
 
 def cdbscan(dataset, epsilon=0.01, minpts=5, mustlink=None, cannotlink=None):
+    """
+    Step 1 -> Partition the data space with a KD-Tree
+    kdtree := BuildKDTree(D)
+
+    Step 2 -> Create local clustersin the KD-Tree
+    for each leaf node v in kdtree and each unlabeled point pi in v do
+        DR(pi) := all points density-reachable from pi within eps
+        if |DR(pi)| < MinPts then
+            Label pi as NOISE_POINT
+        else if exists a constraint CL among points in DR(pi) then
+            Each point in DR(pi) and pi becomes one LOCAL_CLUSTER
+        else
+            Label pi as CORE_POINT
+            All of {pi} U DR(pi) becomes one LOCAL_CLUSTER
+        end
+    end
+
+    Step 3a -> Merge clusters and enforce the Must-Link constraints
+    for each constraint in ML do
+        Let p, p' be the data points in the constraint
+        Find the clusters C, C' with p in C and p' in C'
+        Merge C, C' into cluster Cnew := C U C' and label it as ALPHA_CLUSTER
+    end
+
+    Step 3b -> Build the final clusters
+    while number of local clusters decreases do
+        for each local cluster C do
+            Let C' be the closest ALPHA_CLUSTER that is density-reachable from C
+            if exists no constraint in CL between points of C, C' then
+                Incorporate C into C', i.e. C' := C U C'
+            end
+        end
+    end
+    return each ALPHA_CLUSTER and each remaining LOCAL_CLUSTER
+    """
     return None
 
 
