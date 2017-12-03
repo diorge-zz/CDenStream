@@ -76,6 +76,30 @@ def create_local_clusters(hyperparam, state):
     state['next_cluster'] = next_cluster
 
 
+def merge_clusters(cluster_to_point, point_to_cluster, cannotlink,
+                   new_cluster_id, new_cluster_kind,
+                   *clusters_to_merge):
+    """Merges two or more clusters into a single new cluster
+    containing all the points.
+    Returns if the merge is allowed by cannot-link constraints
+    (if it is not, the merge is not performed)
+
+    :param clusters_to_merge: list of cluster points (not IDs)
+    """
+    clusters_to_merge = list(clusters_to_merge)
+    all_points = set.union(*map(set, clusters_to_merge))
+
+    if cluster_respect_cannot_link_constraints(all_points, cannotlink):
+        new_cluster = Cluster(new_cluster_kind, tuple(all_points))
+        cluster_to_point[new_cluster_id] = new_cluster
+
+        for point in new_cluster:
+            point_to_cluster[point] = new_cluster_id
+
+        return True
+    return False
+
+
 def merge_mustlink_constraints(hyperparam, state):
     """Step 3a of CDBScan
     Enforces every must-link constraint that is not yet respected
@@ -105,12 +129,9 @@ def merge_mustlink_constraints(hyperparam, state):
         else:
             points_of_c2 = Cluster('noise', [ml2])
 
-        # creates a new cluster as the union of the previous two
-        merged = Cluster('alpha', tuple(set(points_of_c1).union(set(points_of_c2))))
-        cluster_to_point[next_cluster] = merged
-        # and make each point of the new cluster point to it
-        for point in merged:
-            point_to_cluster[point] = next_cluster
+        merge_clusters(cluster_to_point, point_to_cluster,
+                       hyperparam['cannotlink'], next_cluster,
+                       'alpha', points_of_c1, points_of_c2)
         next_cluster += 1
 
     state['next_cluster'] = next_cluster
@@ -152,7 +173,6 @@ def merge_local_into_alpha(hyperparam, state):
                          if cluster.kind == 'local'}
 
         for index_of_lc, localcluster in localclusters.items():
-            elements_of_lc = localcluster.points
             reachable_alpha = compute_reachable_clusters(index_of_lc, 'alpha')
             if len(reachable_alpha) > 0:
                 centroids_of_reachable_alpha = [compute_cluster_centroid(i)
@@ -164,14 +184,14 @@ def merge_local_into_alpha(hyperparam, state):
 
                 closest_alpha = reachable_alpha[np.argmin(dist_to_reachable_alpha)]
 
-                merged_cluster = set(elements_of_lc)
-                merged_cluster.update(cluster_to_point[closest_alpha])
-                if cluster_respect_cannot_link_constraints(merged_cluster, hyperparam['cannotlink']):
+                canmerge = merge_clusters(cluster_to_point, point_to_cluster,
+                                          hyperparam['cannotlink'],
+                                          next_cluster, 'alpha',
+                                          localcluster,
+                                          cluster_to_point[closest_alpha])
+                if canmerge:
                     del cluster_to_point[index_of_lc]
                     del cluster_to_point[closest_alpha]
-                    cluster_to_point[next_cluster] = Cluster('alpha', tuple(merged_cluster))
-                    for point in merged_cluster:
-                        point_to_cluster[point] = next_cluster
                     next_cluster += 1
                     clusters_changed = True
                     break
