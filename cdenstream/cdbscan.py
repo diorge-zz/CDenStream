@@ -18,37 +18,6 @@ def compute_density_reachable_points(dataset, maximum_distance):
     return density_reachable
 
 
-def compute_density_connectable_points(distances, point_index, maximum_distance):
-    """
-    distances should be a sklearn.metrics.pairwise.pairwise_distances matrix
-    """
-
-    def compute_neighbors(element_index):
-        return tuple(i for i in range(element_count)
-                     if distances[element_index, i] <= maximum_distance)
-
-    element_count = distances.shape[0]
-
-    # Storing points already visited to prevent infinite loops
-    points_already_visited = set()
-
-    # The initial set of density_reachable points is the neighborhood of
-    # the point
-    density_connectable = set(compute_neighbors(point_index))
-
-    new_points_to_explore = True
-    while new_points_to_explore:
-        old_reachable_point_count = len(density_connectable)
-        reachable_neighborhoods = [compute_neighbors(i) for i in density_connectable
-                                   if i not in points_already_visited]
-        points_already_visited.update(density_connectable)
-        for neighborhood in reachable_neighborhoods:
-            density_connectable.update(neighborhood)
-        new_points_to_explore = old_reachable_point_count < len(density_connectable)
-
-    return density_connectable
-
-
 class Cluster:
     def __init__(self, kind, points=None):
         self.kind = kind
