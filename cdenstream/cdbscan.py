@@ -162,16 +162,17 @@ def cdbscan(dataset, epsilon=0.01, minpts=5, mustlink=None, cannotlink=None):
         points = allclusters[cluster].points
         return np.mean(points)
 
-    def compute_reachable_clusters(target_cluster):
+    def compute_reachable_clusters(target_cluster, clusterkind='all'):
         reachable_points = {densityreachable[p] for p in allclusters[target_cluster]}
         reachable_points = {x for sublist in reachable_points for x in sublist}
 
         reachable_clusters_indexes = list()
         for cluster_index, cluster in allclusters.items():
-            for p in cluster.points:
-                if p in reachable_points:
-                    reachable_clusters_indexes.append(cluster_index)
-                    break
+            if clusterkind == 'all' or clusterkind == cluster.kind:
+                for p in cluster.points:
+                    if p in reachable_points:
+                        reachable_clusters_indexes.append(cluster_index)
+                        break
 
         return reachable_clusters_indexes
 
@@ -182,24 +183,26 @@ def cdbscan(dataset, epsilon=0.01, minpts=5, mustlink=None, cannotlink=None):
         for index_of_lc, lc in allclusters.items():
             if lc.kind == 'local':
                 elements_of_lc = lc.points
-                indexes_of_reachable_alpha = compute_reachable_clusters(index_of_lc)
-                centroids_of_reachable_alpha = [compute_cluster_centroid(i)
-                                                for i in indexes_of_reachable_alpha]
+                indexes_of_reachable_alpha = compute_reachable_clusters(index_of_lc, 'alpha')
+                if len(indexes_of_reachable_alpha) > 0:
+                    centroids_of_reachable_alpha = [compute_cluster_centroid(i)
+                                                    for i in indexes_of_reachable_alpha]
 
-                lc_centroid = compute_cluster_centroid(index_of_lc)
-                dist_to_reachable_alpha = [np.linalg.norm(lc_centroid - alpha_centroid)
-                                        for alpha_centroid in centroids_of_reachable_alpha]
+                    lc_centroid = compute_cluster_centroid(index_of_lc)
+                    dist_to_reachable_alpha = [np.linalg.norm(lc_centroid - alpha_centroid)
+                                            for alpha_centroid in centroids_of_reachable_alpha]
 
-                index_of_closest_alpha_cluster = indexes_of_reachable_alpha[np.argmin(dist_to_reachable_alpha)]
+                    index_of_closest_alpha_cluster = indexes_of_reachable_alpha[np.argmin(dist_to_reachable_alpha)]
 
-                merged_cluster = set(elements_of_lc)
-                merged_cluster.update(allclusters[index_of_closest_alpha_cluster])
-                if not cluster_respect_cannot_link_constraints(cluster=merged_cluster, cl_constraints=cannotlink):
-                    del allclusters[index_of_lc]
-                    del allclusters[index_of_closest_alpha_cluster]
-                    allclusters[nextcluster] = Cluster('alpha', tuple(merged_cluster))
-                    nextcluster += 1
-                    clusters_changed = True
-                    break
+                    merged_cluster = set(elements_of_lc)
+                    merged_cluster.update(allclusters[index_of_closest_alpha_cluster])
+                    print(elements_of_lc, merged_cluster)
+                    if not cluster_respect_cannot_link_constraints(cluster=merged_cluster, cl_constraints=cannotlink):
+                        del allclusters[index_of_lc]
+                        del allclusters[index_of_closest_alpha_cluster]
+                        allclusters[nextcluster] = Cluster('alpha', tuple(merged_cluster))
+                        nextcluster += 1
+                        clusters_changed = True
+                        break
 
     return [x.points for x in allclusters.values()]
