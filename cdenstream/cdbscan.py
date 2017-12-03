@@ -191,13 +191,13 @@ def cdbscan(dataset, epsilon=0.01, minpts=5, mustlink=None, cannotlink=None):
 
                 lc_centroid = compute_cluster_centroid(index_of_lc)
                 dist_to_reachable_alpha = [np.linalg.norm(lc_centroid - alpha_centroid)
-                                            for alpha_centroid in centroids_of_reachable_alpha]
+                                           for alpha_centroid in centroids_of_reachable_alpha]
 
                 closest_alpha = reachable_alpha[np.argmin(dist_to_reachable_alpha)]
 
                 merged_cluster = set(elements_of_lc)
                 merged_cluster.update(allclusters[closest_alpha])
-                if cluster_respect_cannot_link_constraints(cluster=merged_cluster, cl_constraints=cannotlink):
+                if cluster_respect_cannot_link_constraints(merged_cluster, cannotlink):
                     del allclusters[index_of_lc]
                     del allclusters[closest_alpha]
                     allclusters[nextcluster] = Cluster('alpha', tuple(merged_cluster))
