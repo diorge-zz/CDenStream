@@ -3,6 +3,7 @@ Based on the work "Density-based semi-supervised clustering"
 by Ruiz, Spiliopoulou and Menasalvas (2009)
 """
 import numpy as np
+from collections import namedtuple
 from sklearn.neighbors import KDTree
 from .constraint import cluster_respect_cannot_link_constraints
 
@@ -41,6 +42,40 @@ class Cluster:
         return repr(self.points)
 
 
+def create_local_clusters(hyperparam, state):
+    """Step 2 of CDBScan
+    For each data point, it is labeled as either noise or a local cluster.
+    Local clusters may have a single or multiple points,
+    depending or cannot-link constraints
+    """
+    point_to_cluster = state['point_to_cluster']
+    cluster_to_point = state['cluster_to_point']
+    next_cluster = state['next_cluster']
+
+    for index, _ in enumerate(hyperparam['dataset']):
+        # if point is yet unlabeled
+        if point_to_cluster[index] == -1:
+            pointdr = state['densityreachable'][index]
+            if len(pointdr) < hyperparam['minpts']:
+                # noise point
+                pass
+            elif not cluster_respect_cannot_link_constraints(pointdr, hyperparam['cannotlink']):
+                for node in pointdr:
+                    clusterpoints = (node,)
+                    cluster_to_point[next_cluster] = Cluster('local', clusterpoints)
+                    point_to_cluster[node] = next_cluster
+                    next_cluster += 1
+            else:
+                # core point
+                ldr = list(pointdr)
+                clusterpoints = tuple(ldr)
+                cluster_to_point[next_cluster] = Cluster('local', clusterpoints)
+                point_to_cluster[ldr] = next_cluster
+                next_cluster += 1
+
+    state['next_cluster'] = next_cluster
+
+
 def cdbscan(dataset, epsilon=0.01, minpts=5, mustlink=None, cannotlink=None):
     """Implementation of the CDBScan algorithm
     """
@@ -56,30 +91,21 @@ def cdbscan(dataset, epsilon=0.01, minpts=5, mustlink=None, cannotlink=None):
     # use clusters[point_id] to find out which cluster a point belongs to
     clusters = np.empty((dataset.shape[0],), dtype=np.int)
     clusters.fill(-1)
-    nextcluster = 0
 
+    hyperparams = {'dataset': dataset,
+                   'epsilon': epsilon,
+                   'minpts': minpts,
+                   'mustlink': mustlink,
+                   'cannotlink': cannotlink}
+    state = {'point_to_cluster': clusters,
+             'cluster_to_point': allclusters,
+             'next_cluster': 0}
+
+    # effectively the Step 1 of the algorithm's pseudocode
     densityreachable = find_density_reachable_points(dataset, epsilon)
+    state['densityreachable'] = densityreachable
 
-    for index, point in enumerate(dataset):
-        # if point is yet unlabeled
-        if clusters[index] == -1:
-            pointdr = densityreachable[index]
-            if len(pointdr) < minpts:
-                # noise point
-                pass
-            elif not cluster_respect_cannot_link_constraints(pointdr, cannotlink):
-                for node in pointdr:
-                    clusterpoints = (node,)
-                    allclusters[nextcluster] = Cluster('local', clusterpoints)
-                    clusters[node] = nextcluster
-                    nextcluster += 1
-            else:
-                # core point
-                ldr = list(pointdr)
-                clusterpoints = tuple(ldr)
-                allclusters[nextcluster] = Cluster('local', clusterpoints)
-                clusters[ldr] = nextcluster
-                nextcluster += 1
+    create_local_clusters(hyperparams, state)
 
     # Step 3a: merge must-link constraints
     for ml1, ml2 in mustlink:
@@ -98,10 +124,10 @@ def cdbscan(dataset, epsilon=0.01, minpts=5, mustlink=None, cannotlink=None):
         else:
             points_of_c2 = Cluster('noise', [ml2])
         merged = Cluster('alpha', tuple(set(points_of_c1).union(set(points_of_c2))))
-        allclusters[nextcluster] = merged
+        allclusters[state['next_cluster']] = merged
         for point in merged:
-            clusters[point] = nextcluster
-        nextcluster += 1
+            clusters[point] = state['next_cluster']
+        state['next_cluster'] += 1
 
 
     # Step 3b - Build the final clusters
@@ -148,10 +174,10 @@ def cdbscan(dataset, epsilon=0.01, minpts=5, mustlink=None, cannotlink=None):
                 if cluster_respect_cannot_link_constraints(merged_cluster, cannotlink):
                     del allclusters[index_of_lc]
                     del allclusters[closest_alpha]
-                    allclusters[nextcluster] = Cluster('alpha', tuple(merged_cluster))
+                    allclusters[state['next_cluster']] = Cluster('alpha', tuple(merged_cluster))
                     for point in merged_cluster:
-                        clusters[point] = nextcluster
-                    nextcluster += 1
+                        clusters[point] = state['next_cluster']
+                    state['next_cluster'] += 1
                     clusters_changed = True
                     break
 
