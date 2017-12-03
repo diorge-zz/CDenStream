@@ -183,22 +183,22 @@ def cdbscan(dataset, epsilon=0.01, minpts=5, mustlink=None, cannotlink=None):
         for index_of_lc, lc in allclusters.items():
             if lc.kind == 'local':
                 elements_of_lc = lc.points
-                indexes_of_reachable_alpha = compute_reachable_clusters(index_of_lc, 'alpha')
-                if len(indexes_of_reachable_alpha) > 0:
+                reachable_alpha = compute_reachable_clusters(index_of_lc, 'alpha')
+                if len(reachable_alpha) > 0:
                     centroids_of_reachable_alpha = [compute_cluster_centroid(i)
-                                                    for i in indexes_of_reachable_alpha]
+                                                    for i in reachable_alpha]
 
                     lc_centroid = compute_cluster_centroid(index_of_lc)
                     dist_to_reachable_alpha = [np.linalg.norm(lc_centroid - alpha_centroid)
-                                            for alpha_centroid in centroids_of_reachable_alpha]
+                                               for alpha_centroid in centroids_of_reachable_alpha]
 
-                    index_of_closest_alpha_cluster = indexes_of_reachable_alpha[np.argmin(dist_to_reachable_alpha)]
+                    closest_alpha = reachable_alpha[np.argmin(dist_to_reachable_alpha)]
 
                     merged_cluster = set(elements_of_lc)
-                    merged_cluster.update(allclusters[index_of_closest_alpha_cluster])
+                    merged_cluster.update(allclusters[closest_alpha])
                     if cluster_respect_cannot_link_constraints(cluster=merged_cluster, cl_constraints=cannotlink):
                         del allclusters[index_of_lc]
-                        del allclusters[index_of_closest_alpha_cluster]
+                        del allclusters[closest_alpha]
                         allclusters[nextcluster] = Cluster('alpha', tuple(merged_cluster))
                         for point in merged_cluster:
                             clusters[point] = nextcluster
