@@ -37,7 +37,7 @@ def find_reachable_clusters(cluster_to_point, densityreachable, target_cluster, 
     reachable_clusters_indexes = list()
     for cluster_index, cluster in cluster_to_point.items():
         if clusterkind == 'all' or clusterkind == cluster.kind:
-            for point in cluster.points:
+            for point in cluster:
                 if point in reachable_points:
                     reachable_clusters_indexes.append(cluster_index)
                     break
