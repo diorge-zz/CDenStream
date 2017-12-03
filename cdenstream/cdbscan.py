@@ -23,6 +23,10 @@ def find_density_reachable_points(dataset, maximum_distance):
 
 
 class Cluster:
+    """Represents a cluster object
+    Clusters have a kind (noise, alpha or local)
+    and a collection of points
+    """
     def __init__(self, kind, points=None):
         self.kind = kind
         if points is None:
