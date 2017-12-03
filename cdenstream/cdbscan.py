@@ -1,6 +1,6 @@
 from sklearn.metrics.pairwise import pairwise_distances
 from sklearn.neighbors import KDTree
-from .constraint import *
+from .constraint import cluster_respect_cannot_link_constraints
 import numpy as np
 
 
@@ -140,10 +140,16 @@ def cdbscan(dataset, epsilon=0.01, minpts=5, mustlink=None, cannotlink=None):
         c2 = clusters[ml2]
         if c1 == c2:
             continue
-        points_of_c1 = allclusters[c1]
-        points_of_c2 = allclusters[c2]
-        del allclusters[c1]
-        del allclusters[c2]
+        if c1 != -1:
+            points_of_c1 = allclusters[c1]
+            del allclusters[c1]
+        else:
+            points_of_c1 = Cluster('noise', [ml1])
+        if c2 != -1:
+            points_of_c2 = allclusters[c2]
+            del allclusters[c2]
+        else:
+            points_of_c2 = Cluster('noise', [ml2])
         merged = Cluster('alpha', tuple(set(points_of_c1).union(set(points_of_c2))))
         allclusters[nextcluster] = merged
         for point in merged:
@@ -174,27 +180,26 @@ def cdbscan(dataset, epsilon=0.01, minpts=5, mustlink=None, cannotlink=None):
         clusters_changed = False
 
         for index_of_lc, lc in allclusters.items():
-            if lc.kind != 'alpha':
-                continue
-            elements_of_lc = lc.points
-            indexes_of_reachable_alpha = compute_reachable_clusters(index_of_lc)
-            centroids_of_reachable_alpha = [compute_cluster_centroid(i)
-                                            for i in indexes_of_reachable_alpha]
+            if lc.kind == 'local':
+                elements_of_lc = lc.points
+                indexes_of_reachable_alpha = compute_reachable_clusters(index_of_lc)
+                centroids_of_reachable_alpha = [compute_cluster_centroid(i)
+                                                for i in indexes_of_reachable_alpha]
 
-            lc_centroid = compute_cluster_centroid(index_of_lc)
-            dist_to_reachable_alpha = [np.linalg.norm(lc_centroid - alpha_centroid)
-                                       for alpha_centroid in centroids_of_reachable_alpha]
+                lc_centroid = compute_cluster_centroid(index_of_lc)
+                dist_to_reachable_alpha = [np.linalg.norm(lc_centroid - alpha_centroid)
+                                        for alpha_centroid in centroids_of_reachable_alpha]
 
-            index_of_closest_alpha_cluster = indexes_of_reachable_alpha[np.argmin(dist_to_reachable_alpha)]
+                index_of_closest_alpha_cluster = indexes_of_reachable_alpha[np.argmin(dist_to_reachable_alpha)]
 
-            merged_cluster = set(elements_of_lc)
-            merged_cluster.update(allclusters[index_of_closest_alpha_cluster])
-            if not cluster_respect_cannot_link_constraints(cluster=merged_cluster, cl_constraints=cannotlink):
-                del allclusters[index_of_lc]
-                del allclusters[index_of_closest_alpha_cluster]
-                allclusters[nextcluster] = Cluster('alpha', tuple(merged_cluster))
-                nextcluster += 1
-                clusters_changed = True
-                break
+                merged_cluster = set(elements_of_lc)
+                merged_cluster.update(allclusters[index_of_closest_alpha_cluster])
+                if not cluster_respect_cannot_link_constraints(cluster=merged_cluster, cl_constraints=cannotlink):
+                    del allclusters[index_of_lc]
+                    del allclusters[index_of_closest_alpha_cluster]
+                    allclusters[nextcluster] = Cluster('alpha', tuple(merged_cluster))
+                    nextcluster += 1
+                    clusters_changed = True
+                    break
 
     return [x.points for x in allclusters.values()]
