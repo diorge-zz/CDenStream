@@ -107,3 +107,17 @@ def test_outlier_cluster():
     clusters = cdbscan(points, epsilon=epsilon, minpts=minpts,
                        mustlink=mustlink)
     assert sorted(clusters) == [(0, 1, 2, 3, 4, 5)]
+
+
+def test_connection_through_alpha():
+    points = np.array([[1, 1], [2, 2], [2, 1], # cluster 1
+                       [4, 5], [5, 4], [5, 5], # cluster 2
+                       [9, 1], [8, 0], [13, 2], # cluster 3
+                       [3, 3], [7, 3]]) # bridges between 1-2 and 2-3
+    epsilon = 4
+    minpts = 2
+    mustlink = set([(7, 8)])
+    clusters = cdbscan(points, epsilon=epsilon, minpts=minpts,
+                       mustlink=mustlink)
+    # assert is becomes a single cluster because the bridges merge the clusters
+    assert sorted(clusters) == [tuple(range(len(points)))]
