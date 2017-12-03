@@ -3,9 +3,15 @@ Based on the work "Density-based semi-supervised clustering"
 by Ruiz, Spiliopoulou and Menasalvas (2009)
 """
 import numpy as np
-from collections import namedtuple
 from sklearn.neighbors import KDTree
 from .constraint import cluster_respect_cannot_link_constraints
+
+
+def centroid(cluster_points):
+    """Finds the centroid of the cluster
+    (i.e. the mean of each dimension)
+    """
+    return np.mean(cluster_points)
 
 
 def find_density_reachable_points(dataset, maximum_distance):
@@ -147,9 +153,6 @@ def merge_local_into_alpha(hyperparam, state):
     cluster_to_point = state['cluster_to_point']
     next_cluster = state['next_cluster']
 
-    def compute_cluster_centroid(cluster):
-        points = cluster_to_point[cluster].points
-        return np.mean(points)
 
     def compute_reachable_clusters(target_cluster, clusterkind='all'):
         reachable_points = {state['densityreachable'][p] for p in cluster_to_point[target_cluster]}
@@ -175,10 +178,10 @@ def merge_local_into_alpha(hyperparam, state):
         for index_of_lc, localcluster in localclusters.items():
             reachable_alpha = compute_reachable_clusters(index_of_lc, 'alpha')
             if len(reachable_alpha) > 0:
-                centroids_of_reachable_alpha = [compute_cluster_centroid(i)
+                centroids_of_reachable_alpha = [centroid(cluster_to_point[i].points)
                                                 for i in reachable_alpha]
 
-                lc_centroid = compute_cluster_centroid(index_of_lc)
+                lc_centroid = centroid(cluster_to_point[index_of_lc].points)
                 dist_to_reachable_alpha = [np.linalg.norm(lc_centroid - alpha_centroid)
                                            for alpha_centroid in centroids_of_reachable_alpha]
 
