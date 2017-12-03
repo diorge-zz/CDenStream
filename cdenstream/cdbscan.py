@@ -1,7 +1,6 @@
-from sklearn.metrics.pairwise import pairwise_distances
+import numpy as np
 from sklearn.neighbors import KDTree
 from .constraint import cluster_respect_cannot_link_constraints
-import numpy as np
 
 
 def compute_density_reachable_points(dataset, maximum_distance):
