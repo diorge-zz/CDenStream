@@ -196,11 +196,12 @@ def cdbscan(dataset, epsilon=0.01, minpts=5, mustlink=None, cannotlink=None):
 
                     merged_cluster = set(elements_of_lc)
                     merged_cluster.update(allclusters[index_of_closest_alpha_cluster])
-                    print(elements_of_lc, merged_cluster)
-                    if not cluster_respect_cannot_link_constraints(cluster=merged_cluster, cl_constraints=cannotlink):
+                    if cluster_respect_cannot_link_constraints(cluster=merged_cluster, cl_constraints=cannotlink):
                         del allclusters[index_of_lc]
                         del allclusters[index_of_closest_alpha_cluster]
                         allclusters[nextcluster] = Cluster('alpha', tuple(merged_cluster))
+                        for point in merged_cluster:
+                            clusters[point] = nextcluster
                         nextcluster += 1
                         clusters_changed = True
                         break
