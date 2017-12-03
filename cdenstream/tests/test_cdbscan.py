@@ -74,3 +74,19 @@ def test_mustlink_merging():
     clusters = cdbscan(points, epsilon=epsilon, minpts=minpts,
                        mustlink=mustlink)
     assert sorted(clusters) == [(0, 1, 2, 3, 4, 5)]
+
+
+def test_singleton_outlier():
+    points = np.array([[1, 1],
+                       [52, 3],
+                       [1, 2],
+                       [50, 4],
+                       [2, 3],
+                       [51, 2],
+                       [100, 200]])
+    epsilon = 5
+    minpts = 2
+    mustlink = set([(0, 1)])
+    clusters = cdbscan(points, epsilon=epsilon, minpts=minpts,
+                       mustlink=mustlink)
+    assert sorted(clusters) == [(0, 1, 2, 3, 4, 5)]
