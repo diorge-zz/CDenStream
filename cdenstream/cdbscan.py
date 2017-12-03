@@ -7,7 +7,11 @@ from sklearn.neighbors import KDTree
 from .constraint import cluster_respect_cannot_link_constraints
 
 
-def compute_density_reachable_points(dataset, maximum_distance):
+def find_density_reachable_points(dataset, maximum_distance):
+    """Creates the density-reachable matrix of the dataset
+    The return is a dict that maps each point index (zero-based)
+    to a tuple of indices for the points in its neighborhood
+    """
     element_count = dataset.shape[0]
     kdtree = KDTree(dataset, metric="euclidean")
     neighborhoods = kdtree.query_radius(X=dataset, r=maximum_distance)
@@ -83,7 +87,7 @@ def cdbscan(dataset, epsilon=0.01, minpts=5, mustlink=None, cannotlink=None):
     clusters.fill(-1)
     nextcluster = 0
 
-    densityreachable = compute_density_reachable_points(dataset, epsilon)
+    densityreachable = find_density_reachable_points(dataset, epsilon)
 
     for index, point in enumerate(dataset):
         # if point is yet unlabeled
