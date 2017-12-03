@@ -76,6 +76,46 @@ def create_local_clusters(hyperparam, state):
     state['next_cluster'] = next_cluster
 
 
+def merge_mustlink_constraints(hyperparam, state):
+    """Step 3a of CDBScan
+    Enforces every must-link constraint that is not yet respected
+    The clusters created by merging two of these local clusters
+    are labeled as alpha clusters
+    """
+    point_to_cluster = state['point_to_cluster']
+    cluster_to_point = state['cluster_to_point']
+    next_cluster = state['next_cluster']
+
+    for ml1, ml2 in hyperparam['mustlink']:
+        cluster1 = point_to_cluster[ml1]
+        cluster2 = point_to_cluster[ml2]
+
+        if cluster1 == cluster2:
+            continue
+
+        if cluster1 != -1:
+            points_of_c1 = cluster_to_point[cluster1]
+            del cluster_to_point[cluster1]
+        else:
+            points_of_c1 = Cluster('noise', [ml1])
+
+        if cluster2 != -1:
+            points_of_c2 = cluster_to_point[cluster2]
+            del cluster_to_point[cluster2]
+        else:
+            points_of_c2 = Cluster('noise', [ml2])
+
+        # creates a new cluster as the union of the previous two
+        merged = Cluster('alpha', tuple(set(points_of_c1).union(set(points_of_c2))))
+        cluster_to_point[next_cluster] = merged
+        # and make each point of the new cluster point to it
+        for point in merged:
+            point_to_cluster[point] = next_cluster
+        next_cluster += 1
+
+    state['next_cluster'] = next_cluster
+
+
 def cdbscan(dataset, epsilon=0.01, minpts=5, mustlink=None, cannotlink=None):
     """Implementation of the CDBScan algorithm
     """
@@ -105,29 +145,11 @@ def cdbscan(dataset, epsilon=0.01, minpts=5, mustlink=None, cannotlink=None):
     densityreachable = find_density_reachable_points(dataset, epsilon)
     state['densityreachable'] = densityreachable
 
+    # Step 2 of the algorithm
     create_local_clusters(hyperparams, state)
 
-    # Step 3a: merge must-link constraints
-    for ml1, ml2 in mustlink:
-        cluster1 = clusters[ml1]
-        cluster2 = clusters[ml2]
-        if cluster1 == cluster2:
-            continue
-        if cluster1 != -1:
-            points_of_c1 = allclusters[cluster1]
-            del allclusters[cluster1]
-        else:
-            points_of_c1 = Cluster('noise', [ml1])
-        if cluster2 != -1:
-            points_of_c2 = allclusters[cluster2]
-            del allclusters[cluster2]
-        else:
-            points_of_c2 = Cluster('noise', [ml2])
-        merged = Cluster('alpha', tuple(set(points_of_c1).union(set(points_of_c2))))
-        allclusters[state['next_cluster']] = merged
-        for point in merged:
-            clusters[point] = state['next_cluster']
-        state['next_cluster'] += 1
+    # Step 3a
+    merge_mustlink_constraints(hyperparams, state)
 
 
     # Step 3b - Build the final clusters
