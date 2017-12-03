@@ -178,31 +178,33 @@ def cdbscan(dataset, epsilon=0.01, minpts=5, mustlink=None, cannotlink=None):
     clusters_changed = True
     while clusters_changed:
         clusters_changed = False
+        localclusters = {idx: cluster
+                         for idx, cluster in allclusters.items()
+                         if cluster.kind == 'local'}
 
-        for index_of_lc, localcluster in allclusters.items():
-            if localcluster.kind == 'local':
-                elements_of_lc = localcluster.points
-                reachable_alpha = compute_reachable_clusters(index_of_lc, 'alpha')
-                if len(reachable_alpha) > 0:
-                    centroids_of_reachable_alpha = [compute_cluster_centroid(i)
-                                                    for i in reachable_alpha]
+        for index_of_lc, localcluster in localclusters.items():
+            elements_of_lc = localcluster.points
+            reachable_alpha = compute_reachable_clusters(index_of_lc, 'alpha')
+            if len(reachable_alpha) > 0:
+                centroids_of_reachable_alpha = [compute_cluster_centroid(i)
+                                                for i in reachable_alpha]
 
-                    lc_centroid = compute_cluster_centroid(index_of_lc)
-                    dist_to_reachable_alpha = [np.linalg.norm(lc_centroid - alpha_centroid)
-                                               for alpha_centroid in centroids_of_reachable_alpha]
+                lc_centroid = compute_cluster_centroid(index_of_lc)
+                dist_to_reachable_alpha = [np.linalg.norm(lc_centroid - alpha_centroid)
+                                            for alpha_centroid in centroids_of_reachable_alpha]
 
-                    closest_alpha = reachable_alpha[np.argmin(dist_to_reachable_alpha)]
+                closest_alpha = reachable_alpha[np.argmin(dist_to_reachable_alpha)]
 
-                    merged_cluster = set(elements_of_lc)
-                    merged_cluster.update(allclusters[closest_alpha])
-                    if cluster_respect_cannot_link_constraints(cluster=merged_cluster, cl_constraints=cannotlink):
-                        del allclusters[index_of_lc]
-                        del allclusters[closest_alpha]
-                        allclusters[nextcluster] = Cluster('alpha', tuple(merged_cluster))
-                        for point in merged_cluster:
-                            clusters[point] = nextcluster
-                        nextcluster += 1
-                        clusters_changed = True
-                        break
+                merged_cluster = set(elements_of_lc)
+                merged_cluster.update(allclusters[closest_alpha])
+                if cluster_respect_cannot_link_constraints(cluster=merged_cluster, cl_constraints=cannotlink):
+                    del allclusters[index_of_lc]
+                    del allclusters[closest_alpha]
+                    allclusters[nextcluster] = Cluster('alpha', tuple(merged_cluster))
+                    for point in merged_cluster:
+                        clusters[point] = nextcluster
+                    nextcluster += 1
+                    clusters_changed = True
+                    break
 
     return [x.points for x in allclusters.values()]
