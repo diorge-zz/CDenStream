@@ -1,3 +1,7 @@
+"""CDBScan algorithm
+Based on the work "Density-based semi-supervised clustering"
+by Ruiz, Spiliopoulou and Menasalvas (2009)
+"""
 import numpy as np
 from sklearn.neighbors import KDTree
 from .constraint import cluster_respect_cannot_link_constraints
