@@ -28,6 +28,22 @@ def find_density_reachable_points(dataset, maximum_distance):
 
     return density_reachable
 
+def find_reachable_clusters(cluster_to_point, densityreachable, target_cluster, clusterkind='all'):
+    """Finds the clusters that can be reached from another cluster
+    """
+    reachable_points = {densityreachable[p] for p in cluster_to_point[target_cluster]}
+    reachable_points = {x for sublist in reachable_points for x in sublist}
+
+    reachable_clusters_indexes = list()
+    for cluster_index, cluster in cluster_to_point.items():
+        if clusterkind == 'all' or clusterkind == cluster.kind:
+            for point in cluster.points:
+                if point in reachable_points:
+                    reachable_clusters_indexes.append(cluster_index)
+                    break
+
+    return reachable_clusters_indexes
+
 
 class Cluster:
     """Represents a cluster object
@@ -153,21 +169,6 @@ def merge_local_into_alpha(hyperparam, state):
     cluster_to_point = state['cluster_to_point']
     next_cluster = state['next_cluster']
 
-
-    def compute_reachable_clusters(target_cluster, clusterkind='all'):
-        reachable_points = {state['densityreachable'][p] for p in cluster_to_point[target_cluster]}
-        reachable_points = {x for sublist in reachable_points for x in sublist}
-
-        reachable_clusters_indexes = list()
-        for cluster_index, cluster in cluster_to_point.items():
-            if clusterkind == 'all' or clusterkind == cluster.kind:
-                for point in cluster.points:
-                    if point in reachable_points:
-                        reachable_clusters_indexes.append(cluster_index)
-                        break
-
-        return reachable_clusters_indexes
-
     clusters_changed = True
     while clusters_changed:
         clusters_changed = False
@@ -176,7 +177,8 @@ def merge_local_into_alpha(hyperparam, state):
                          if cluster.kind == 'local'}
 
         for index_of_lc, localcluster in localclusters.items():
-            reachable_alpha = compute_reachable_clusters(index_of_lc, 'alpha')
+            reachable_alpha = find_reachable_clusters(
+                cluster_to_point, state['densityreachable'], index_of_lc, 'alpha')
             if len(reachable_alpha) > 0:
                 centroids_of_reachable_alpha = [centroid(cluster_to_point[i].points)
                                                 for i in reachable_alpha]
