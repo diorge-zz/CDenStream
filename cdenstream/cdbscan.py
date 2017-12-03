@@ -115,19 +115,19 @@ def cdbscan(dataset, epsilon=0.01, minpts=5, mustlink=None, cannotlink=None):
     for index, point in enumerate(dataset):
         # if point is yet unlabeled
         if clusters[index] == -1:
-            dr = densityreachable[index]
-            if len(dr) < minpts:
+            pointdr = densityreachable[index]
+            if len(pointdr) < minpts:
                 # noise point
                 pass
-            elif not cluster_respect_cannot_link_constraints(dr, cannotlink):
-                for node in dr:
+            elif not cluster_respect_cannot_link_constraints(pointdr, cannotlink):
+                for node in pointdr:
                     clusterpoints = (node,)
                     allclusters[nextcluster] = Cluster('local', clusterpoints)
                     clusters[node] = nextcluster
                     nextcluster += 1
             else:
                 # core point
-                ldr = list(dr)
+                ldr = list(pointdr)
                 clusterpoints = tuple(ldr)
                 allclusters[nextcluster] = Cluster('local', clusterpoints)
                 clusters[ldr] = nextcluster
@@ -135,18 +135,18 @@ def cdbscan(dataset, epsilon=0.01, minpts=5, mustlink=None, cannotlink=None):
 
     # Step 3a: merge must-link constraints
     for ml1, ml2 in mustlink:
-        c1 = clusters[ml1]
-        c2 = clusters[ml2]
-        if c1 == c2:
+        cluster1 = clusters[ml1]
+        cluster2 = clusters[ml2]
+        if cluster1 == cluster2:
             continue
-        if c1 != -1:
-            points_of_c1 = allclusters[c1]
-            del allclusters[c1]
+        if cluster1 != -1:
+            points_of_c1 = allclusters[cluster1]
+            del allclusters[cluster1]
         else:
             points_of_c1 = Cluster('noise', [ml1])
-        if c2 != -1:
-            points_of_c2 = allclusters[c2]
-            del allclusters[c2]
+        if cluster2 != -1:
+            points_of_c2 = allclusters[cluster2]
+            del allclusters[cluster2]
         else:
             points_of_c2 = Cluster('noise', [ml2])
         merged = Cluster('alpha', tuple(set(points_of_c1).union(set(points_of_c2))))
@@ -168,8 +168,8 @@ def cdbscan(dataset, epsilon=0.01, minpts=5, mustlink=None, cannotlink=None):
         reachable_clusters_indexes = list()
         for cluster_index, cluster in allclusters.items():
             if clusterkind == 'all' or clusterkind == cluster.kind:
-                for p in cluster.points:
-                    if p in reachable_points:
+                for point in cluster.points:
+                    if point in reachable_points:
                         reachable_clusters_indexes.append(cluster_index)
                         break
 
@@ -179,9 +179,9 @@ def cdbscan(dataset, epsilon=0.01, minpts=5, mustlink=None, cannotlink=None):
     while clusters_changed:
         clusters_changed = False
 
-        for index_of_lc, lc in allclusters.items():
-            if lc.kind == 'local':
-                elements_of_lc = lc.points
+        for index_of_lc, localcluster in allclusters.items():
+            if localcluster.kind == 'local':
+                elements_of_lc = localcluster.points
                 reachable_alpha = compute_reachable_clusters(index_of_lc, 'alpha')
                 if len(reachable_alpha) > 0:
                     centroids_of_reachable_alpha = [compute_cluster_centroid(i)
