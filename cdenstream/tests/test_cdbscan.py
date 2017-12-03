@@ -1,8 +1,13 @@
+"""Unit tests for CDBScan algorithm
+"""
 import numpy as np
 from ..cdbscan import cdbscan
 
 
 def test_easy_clusters_no_constraints():
+    """Tests a simple clustering when
+    there are two easily distinguishable clusters
+    """
     points = np.array([[1, 1],
                        [52, 3],
                        [1, 2],
@@ -16,6 +21,11 @@ def test_easy_clusters_no_constraints():
 
 
 def test_fully_constrained():
+    """Tests clustering for what looks
+    like two easily distinguishable clusters,
+    but is fully constrained to make
+    a unexpected clustering
+    """
     points = np.array([[1, 1],
                        [52, 3],
                        [1, 2],
@@ -32,6 +42,11 @@ def test_fully_constrained():
 
 
 def test_fully_must_constrained():
+    """Tests clustering for what looks
+    like two easily distinguishable clusters,
+    but must-link constraints
+    end up merging every cluster
+    """
     points = np.array([[1, 1],
                        [52, 3],
                        [1, 2],
@@ -47,6 +62,11 @@ def test_fully_must_constrained():
 
 
 def test_fully_cannot_constrained():
+    """Tests clustering for what looks
+    like two easily distinguishable clusters,
+    but cannot-link constraints
+    end up breaking every cluster
+    """
     points = np.array([[1, 1],
                        [52, 3],
                        [1, 2],
@@ -62,6 +82,11 @@ def test_fully_cannot_constrained():
 
 
 def test_mustlink_merging():
+    """Tests clustering for what looks
+    like two easily distinguishable clusters,
+    but a single must-link constraint
+    ends up merging the clusters
+    """
     points = np.array([[1, 1],
                        [52, 3],
                        [1, 2],
@@ -77,6 +102,9 @@ def test_mustlink_merging():
 
 
 def test_singleton_outlier():
+    """Tests clustering when
+    a single point is an outlier
+    """
     points = np.array([[1, 1],
                        [52, 3],
                        [1, 2],
@@ -93,6 +121,10 @@ def test_singleton_outlier():
 
 
 def test_outlier_cluster():
+    """Tests clustering
+    when two points make an outlier cluster
+    and minpts is higher than two
+    """
     points = np.array([[1, 1],
                        [52, 3],
                        [1, 2],
@@ -110,6 +142,12 @@ def test_outlier_cluster():
 
 
 def test_connection_through_alpha():
+    """Tests a more complex situation
+    where there are three distinguishable clusters
+    of 3 points each,
+    and two points make bridges between the clusters,
+    merging all of them in the end
+    """
     points = np.array([[1, 1], [2, 2], [2, 1], # cluster 1
                        [4, 5], [5, 4], [5, 5], # cluster 2
                        [9, 1], [8, 0], [13, 2], # cluster 3
@@ -119,5 +157,4 @@ def test_connection_through_alpha():
     mustlink = set([(7, 8)])
     clusters = cdbscan(points, epsilon=epsilon, minpts=minpts,
                        mustlink=mustlink)
-    # assert is becomes a single cluster because the bridges merge the clusters
     assert sorted(clusters) == [tuple(range(len(points)))]
