@@ -148,13 +148,27 @@ def test_connection_through_alpha():
     and two points make bridges between the clusters,
     merging all of them in the end
     """
-    points = np.array([[1, 1], [2, 2], [2, 1], # cluster 1
-                       [4, 5], [5, 4], [5, 5], # cluster 2
-                       [9, 1], [8, 0], [13, 2], # cluster 3
-                       [3, 3], [7, 3]]) # bridges between 1-2 and 2-3
+    points = np.array([[1, 1], [2, 2], [2, 1],  # cluster 1
+                       [4, 5], [5, 4], [5, 5],  # cluster 2
+                       [9, 1], [8, 0], [13, 2],  # cluster 3
+                       [3, 3], [7, 3]])  # bridges between 1-2 and 2-3
     epsilon = 4
     minpts = 2
     mustlink = set([(7, 8)])
     clusters = cdbscan(points, epsilon=epsilon, minpts=minpts,
                        mustlink=mustlink)
     assert sorted(clusters) == [tuple(range(len(points)))]
+
+
+def test_merge_mustlink_when_cannotlink():
+    """
+    Gib me better name and description?
+    """
+    points = np.array([[0, 0], [0, 1], [1, 0],  # cluster 1
+                       [10, 10], [11, 10], [10, 11]])  # cluster 2
+    epsilon = 1
+    minpts = 3
+    must_link = set([(0, 3), (1, 4)])
+    cannot_link = set([(2, 5)])
+    clusters = cdbscan(points, epsilon=epsilon, minpts=minpts,
+                       mustlink=must_link, cannotlink=cannot_link)
