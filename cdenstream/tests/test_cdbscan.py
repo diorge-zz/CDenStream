@@ -1,6 +1,7 @@
 """Unit tests for CDBScan algorithm
 """
 import numpy as np
+from sklearn.metrics import adjusted_rand_score
 from ..cdbscan import cdbscan
 
 
@@ -17,7 +18,8 @@ def test_easy_clusters_no_constraints():
     epsilon = 5
     minpts = 2
     clusters = cdbscan(points, epsilon=epsilon, minpts=minpts)
-    assert sorted(clusters) == [(0, 2, 3), (1, 4, 5)]
+    expected = [0, 1, 0, 0, 1, 1]
+    assert adjusted_rand_score(expected, clusters) == 1
 
 
 def test_fully_constrained():
@@ -38,7 +40,8 @@ def test_fully_constrained():
     cannotlink = set([(0, 2), (1, 4), (3, 5)])
     clusters = cdbscan(points, epsilon=epsilon, minpts=minpts,
                        mustlink=mustlink, cannotlink=cannotlink)
-    assert sorted(clusters) == [(0, 1), (2, 3), (4, 5)]
+    expected = [0, 0, 1, 1, 2, 2, ]
+    assert adjusted_rand_score(expected, clusters) == 1
 
 
 def test_fully_must_constrained():
@@ -58,7 +61,8 @@ def test_fully_must_constrained():
     mustlink = set([(0, 1), (2, 3), (3, 4)])
     clusters = cdbscan(points, epsilon=epsilon, minpts=minpts,
                        mustlink=mustlink)
-    assert sorted(clusters) == [(0, 1, 2, 3, 4, 5)]
+    expected = [0, 0, 0, 0, 0, 0]
+    assert adjusted_rand_score(expected, clusters) == 1
 
 
 def test_fully_cannot_constrained():
@@ -78,7 +82,8 @@ def test_fully_cannot_constrained():
     cannotlink = set([(0, 2), (2, 4), (1, 5), (3, 5)])
     clusters = cdbscan(points, epsilon=epsilon, minpts=minpts,
                        cannotlink=cannotlink)
-    assert sorted(clusters) == [(0,), (1,), (2,), (3,), (4,), (5,)]
+    expected = [0, 1, 2, 3, 4, 5]
+    assert adjusted_rand_score(expected, clusters) == 1
 
 
 def test_mustlink_merging():
@@ -98,7 +103,8 @@ def test_mustlink_merging():
     mustlink = set([(0, 1)])
     clusters = cdbscan(points, epsilon=epsilon, minpts=minpts,
                        mustlink=mustlink)
-    assert sorted(clusters) == [(0, 1, 2, 3, 4, 5)]
+    expected = [0, 0, 0, 0, 0, 0]
+    assert adjusted_rand_score(expected, clusters) == 1
 
 
 def test_singleton_outlier():
@@ -117,7 +123,8 @@ def test_singleton_outlier():
     mustlink = set([(0, 1)])
     clusters = cdbscan(points, epsilon=epsilon, minpts=minpts,
                        mustlink=mustlink)
-    assert sorted(clusters) == [(0, 1, 2, 3, 4, 5)]
+    expected = [0, 0, 0, 0, 0, 0, -1]
+    assert adjusted_rand_score(expected, clusters) == 1
 
 
 def test_outlier_cluster():
@@ -138,7 +145,8 @@ def test_outlier_cluster():
     mustlink = set([(0, 1)])
     clusters = cdbscan(points, epsilon=epsilon, minpts=minpts,
                        mustlink=mustlink)
-    assert sorted(clusters) == [(0, 1, 2, 3, 4, 5)]
+    expected = [0, 0, 0, 0, 0, 0, -1, -1]
+    assert adjusted_rand_score(expected, clusters) == 1
 
 
 def test_connection_through_alpha():
@@ -157,7 +165,8 @@ def test_connection_through_alpha():
     mustlink = set([(7, 8)])
     clusters = cdbscan(points, epsilon=epsilon, minpts=minpts,
                        mustlink=mustlink)
-    assert sorted(clusters) == [tuple(range(len(points)))]
+    expected = np.zeros(points.shape[0])
+    assert adjusted_rand_score(expected, clusters) == 1
 
 
 def test_merge_mustlink_when_cannotlink():
