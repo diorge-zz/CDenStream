@@ -6,6 +6,7 @@ by Ruiz, Menasalvas and Spiliopoulou (2009)
 
 from collections import namedtuple
 import numpy as np
+from .cdbscan import cdbscan
 
 
 class MicroCluster:
@@ -67,15 +68,15 @@ class MicroCluster:
     def copy(self):
         """Makes a deep copy of the object
         """
-        new = MicroCluster(self.kind, self.ndim, self.timestamp)
+        new = MicroCluster(self.kind, len(self.linear_dimensions), self.timestamp)
         new.weight = self.weight
         new.linear_dimensions = np.copy(self.linear_dimensions)
         new.squared_dimensions = np.copy(self.squared_dimensions)
         new.buffer = [np.copy(pt) for pt in self.buffer]
-        
 
 
 Constraint = namedtuple('Constraint', ['kind', 'weight'])
+
 
 class ConstraintMap:
     """Represents the CO-MC matrix
@@ -119,6 +120,13 @@ class ConstraintMap:
         decayment = 2 ** (-decay * timeinterval)
         for constraint in self._constraints.values():
             constraint.weight *= decayment
+
+    def get_constraints(self, minimum_weight=0):
+        """Returns all constraints with at least minimum_weight
+        """
+        return ((pair, constraint.kind)
+                for pair, constraint in self._constraints.items()
+                if constraint.weight >= minimum_weight)
 
 
 class CDenStream:
@@ -219,3 +227,18 @@ class CDenStream:
             microcluster.update(timeinterval, self.decay_rate)
         self.constraints.update(timeinterval, self.decay_rate)
         self.timestamp = timestamp
+
+    def query(self, constraint_threshold=0.2):
+        """Applies C-DBScan to current core-micro-clusters
+        """
+        points = [microcluster.center()
+                  for microcluster in self.microclusters.values()
+                  if microcluster.kind == 'core']
+        constraints = list(self.constraints.get_constraints(constraint_threshold))
+        mustlink = set(pair for pair, kind in constraints
+                       if kind == 'mustlink')
+        cannotlink = set(pair for pair, kind in constraints
+                         if kind == 'mustlink')
+        return cdbscan(dataset=points, epsilon=self.mindist,
+                       minpts=self.minpts, mustlink=mustlink,
+                       cannotlink=cannotlink)
