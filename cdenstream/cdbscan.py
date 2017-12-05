@@ -4,7 +4,7 @@ by Ruiz, Spiliopoulou and Menasalvas (2009)
 """
 import numpy as np
 from sklearn.neighbors import KDTree
-from .constraint import cluster_respect_cannot_link_constraints
+from .constraint import cluster_respect_cannot_link_constraints, sanitize_constraints
 
 
 def centroid(cluster_points):
@@ -28,6 +28,7 @@ def find_density_reachable_points(dataset, maximum_distance):
 
     return density_reachable
 
+
 def find_reachable_clusters(cluster_to_point, densityreachable, target_cluster, clusterkind='all'):
     """Finds the clusters that can be reached from another cluster
     """
@@ -50,6 +51,7 @@ class Cluster:
     Clusters have a kind (noise, alpha or local)
     and a collection of points
     """
+
     def __init__(self, kind, points=None):
         self.kind = kind
         if points is None:
@@ -207,11 +209,9 @@ def cdbscan(dataset, epsilon=0.01, minpts=5, mustlink=None, cannotlink=None):
     """
     cluster_to_point = {}
 
-    if mustlink is None:
-        mustlink = set()
-
-    if cannotlink is None:
-        cannotlink = set()
+    mustlink, cannotlink = sanitize_constraints(X=dataset,
+                                                must_link=mustlink,
+                                                cannot_link=cannotlink)
 
     # clusters: -1 for unclustered, otherwise the id of the cluster
     # use clusters[point_id] to find out which cluster a point belongs to
@@ -236,4 +236,4 @@ def cdbscan(dataset, epsilon=0.01, minpts=5, mustlink=None, cannotlink=None):
     # Step 3b - Build the final clusters
     merge_local_into_alpha(hyperparams, state)
 
-    return [x.points for x in cluster_to_point.values()]
+    return point_to_cluster
