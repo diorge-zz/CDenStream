@@ -100,3 +100,11 @@ class ConstraintMap:
             else:
                 constraint.kind = kind
                 constraint.weight = timestamp
+
+    def update(self, timeinterval, decay):
+        """Updates the micro-cluster statistics,
+        similar to MicroCluster.update
+        """
+        decayment = 2 ** (-decay * timeinterval)
+        for constraint in self._constraints.values():
+            constraint.weight *= decayment
