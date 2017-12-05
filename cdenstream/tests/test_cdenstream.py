@@ -2,6 +2,7 @@
 """
 
 
+from collections import defaultdict
 import numpy as np
 from ..cdbscan import cdbscan
 from ..cdenstream import CDenStream
@@ -18,13 +19,12 @@ def test_simple_stream():
                               [2, -1],
                               [11, 12]])
     precluster = cdbscan(train_dataset, epsilon=3, minpts=2)
-    points = []
-    for cluster in precluster:
-        clusterpoints = train_dataset[list(cluster)]
-        points.append(clusterpoints)
+    points = defaultdict(list)
+    for index, cluster in enumerate(precluster):
+        points[cluster].append(train_dataset[index, :])
 
     denstream = CDenStream(ndim=2, mindist=3, minpts=2, outlier_radius=1)
-    denstream.initialize(points)
+    denstream.initialize(points.values())
 
     denstream.point_arrival([3, 0], 1)
     denstream.point_arrival([2, 1], 2)
