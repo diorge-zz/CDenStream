@@ -108,3 +108,42 @@ class ConstraintMap:
         decayment = 2 ** (-decay * timeinterval)
         for constraint in self._constraints.values():
             constraint.weight *= decayment
+
+
+class CDenStream:
+    """State and operations for the C-DenStream algorithm
+    """
+    def __init__(self, ndim=2, microclusters=None, mustlink=None, cannotlink=None):
+        self.constraints = ConstraintMap()
+        self.microclusters = {}
+        self.nextmicrocluster = 0
+        self.ndim = ndim
+
+        if microclusters is not None:
+            for cluster in microclusters:
+                newmc = MicroCluster(ndim)
+                for point in cluster:
+                    newmc.merge(point)
+                newmc.update(0, 0)
+                self.microclusters[self.nextmicrocluster] = newmc
+                self.nextmicrocluster += 1
+
+            if mustlink is not None:
+                for pt1, pt2 in mustlink:
+                    mc1 = self._get_closest_microcluster(pt1)
+                    mc2 = self._get_closest_microcluster(pt2)
+                    self.constraints.merge_constraint(mc1, mc2, 'mustlink', 0)
+
+            if cannotlink is not None:
+                for pt1, pt2 in cannotlink:
+                    mc1 = self._get_closest_microcluster(pt1)
+                    mc2 = self._get_closest_microcluster(pt2)
+                    self.constraints.merge_constraint(mc1, mc2, 'cannotlink', 0)
+
+    def _get_closest_microcluster(self, point):
+        """Finds the micro-cluster that is closest to the point parameter
+        """
+        distances = [(k, np.linalg.norm(point - v.center()))
+                     for k, v in self.microclusters.items()]
+        closest_id = sorted(distances, key=(lambda x: x[1]))[0]
+        return closest_id
