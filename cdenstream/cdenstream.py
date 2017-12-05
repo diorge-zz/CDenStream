@@ -203,4 +203,9 @@ class CDenStream:
                 self.microclusters[self.nextmicrocluster] = newmc
                 self.nextmicrocluster += 1
 
-        self.timestamp = timestamp
+    def constraint_arrival(self, kind, point1, point2, timestamp):
+        """Merges a new constraint from the stream into the constraint map
+        """
+        mc1 = self._get_closest_microcluster(point1)
+        mc2 = self._get_closest_microcluster(point2)
+        self.constraints.merge_constraint(mc1, mc2, kind, timestamp)
