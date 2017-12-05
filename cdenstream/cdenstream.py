@@ -14,7 +14,8 @@ class MicroCluster:
     In the case of core-micro-cluster, the value of t0 is simply not used
     """
 
-    def __init__(self, ndim=2, timestamp=0):
+    def __init__(self, kind, ndim=2, timestamp=0):
+        self.kind = kind
         self.weight = 0
         self.linear_dimensions = np.zeros((ndim,))
         self.squared_dimensions = np.zeros((ndim,))
@@ -113,32 +114,44 @@ class ConstraintMap:
 class CDenStream:
     """State and operations for the C-DenStream algorithm
     """
-    def __init__(self, ndim=2, microclusters=None, mustlink=None, cannotlink=None):
+    def __init__(self, ndim=2, mindist=0.5, minpts=5,
+                 outlier_radius=7, decay_rate=0.01):
         self.constraints = ConstraintMap()
         self.microclusters = {}
         self.nextmicrocluster = 0
         self.ndim = ndim
+        self.mindist = mindist
+        self.minpts = minpts
+        self.outlier_radius = outlier_radius
+        self.decay_rate = decay_rate
 
-        if microclusters is not None:
-            for cluster in microclusters:
-                newmc = MicroCluster(ndim)
-                for point in cluster:
-                    newmc.merge(point)
-                newmc.update(0, 0)
-                self.microclusters[self.nextmicrocluster] = newmc
-                self.nextmicrocluster += 1
+    def initialize(self, microclusters, mustlink=None, cannotlink=None):
+        """Initializes with the result of a clustering algorithm,
+        assuming timestamp zero
+        """
+        for cluster in microclusters:
+            newmc = MicroCluster('unknown', self.ndim)
+            for point in cluster:
+                newmc.merge(point)
+            newmc.update(0, 0)
+            if newmc.weight > self.minpts * self.outlier_radius:
+                newmc.kind = 'core'
+            else:
+                newmc.kind = 'outlier'
+            self.microclusters[self.nextmicrocluster] = newmc
+            self.nextmicrocluster += 1
 
-            if mustlink is not None:
-                for pt1, pt2 in mustlink:
-                    mc1 = self._get_closest_microcluster(pt1)
-                    mc2 = self._get_closest_microcluster(pt2)
-                    self.constraints.merge_constraint(mc1, mc2, 'mustlink', 0)
+        if mustlink is not None:
+            for pt1, pt2 in mustlink:
+                mc1 = self._get_closest_microcluster(pt1)
+                mc2 = self._get_closest_microcluster(pt2)
+                self.constraints.merge_constraint(mc1, mc2, 'mustlink', 0)
 
-            if cannotlink is not None:
-                for pt1, pt2 in cannotlink:
-                    mc1 = self._get_closest_microcluster(pt1)
-                    mc2 = self._get_closest_microcluster(pt2)
-                    self.constraints.merge_constraint(mc1, mc2, 'cannotlink', 0)
+        if cannotlink is not None:
+            for pt1, pt2 in cannotlink:
+                mc1 = self._get_closest_microcluster(pt1)
+                mc2 = self._get_closest_microcluster(pt2)
+                self.constraints.merge_constraint(mc1, mc2, 'cannotlink', 0)
 
     def _get_closest_microcluster(self, point):
         """Finds the micro-cluster that is closest to the point parameter
