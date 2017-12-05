@@ -209,3 +209,13 @@ class CDenStream:
         mc1 = self._get_closest_microcluster(point1)
         mc2 = self._get_closest_microcluster(point2)
         self.constraints.merge_constraint(mc1, mc2, kind, timestamp)
+
+    def update(self, timestamp):
+        """Updates the weights of micro-clusters and constraints
+        to keep the stored information fresh
+        """
+        timeinterval = timestamp - self.timestamp
+        for microcluster in self.microclusters.values():
+            microcluster.update(timeinterval, self.decay_rate)
+        self.constraints.update(timeinterval, self.decay_rate)
+        self.timestamp = timestamp
