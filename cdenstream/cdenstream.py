@@ -64,6 +64,16 @@ class MicroCluster:
                 self.squared_dimensions += point ** 2
             self.buffer.clear()
 
+    def copy(self):
+        """Makes a deep copy of the object
+        """
+        new = MicroCluster(self.kind, self.ndim, self.timestamp)
+        new.weight = self.weight
+        new.linear_dimensions = np.copy(self.linear_dimensions)
+        new.squared_dimensions = np.copy(self.squared_dimensions)
+        new.buffer = [np.copy(pt) for pt in self.buffer]
+        
+
 
 Constraint = namedtuple('Constraint', ['kind', 'weight'])
 
@@ -124,6 +134,7 @@ class CDenStream:
         self.minpts = minpts
         self.outlier_radius = outlier_radius
         self.decay_rate = decay_rate
+        self.timestamp = 0
 
     def initialize(self, microclusters, mustlink=None, cannotlink=None):
         """Initializes with the result of a clustering algorithm,
@@ -153,10 +164,43 @@ class CDenStream:
                 mc2 = self._get_closest_microcluster(pt2)
                 self.constraints.merge_constraint(mc1, mc2, 'cannotlink', 0)
 
-    def _get_closest_microcluster(self, point):
+    def _get_closest_microcluster(self, point, kind='any'):
         """Finds the micro-cluster that is closest to the point parameter
         """
-        distances = [(k, np.linalg.norm(point - v.center()))
+        distances = [(k, np.linalg.norm(point - v.center))
                      for k, v in self.microclusters.items()]
-        closest_id = sorted(distances, key=(lambda x: x[1]))[0]
-        return closest_id
+        sorted_ids = sorted(distances, key=(lambda x: x[1]))
+        for mc_id in sorted_ids:
+            if 'kind' == 'any' or self.microclusters[mc_id].kind == kind:
+                return mc_id
+
+        raise ValueError('No clusters of wanted kind')
+
+    def point_arrival(self, point, timestamp):
+        """Merges a new point from the stream into the micro-clusters
+        """
+        timeinterval = timestamp - self.timestamp
+
+        microcluster = self._get_closest_microcluster(point, 'core')
+        clone = microcluster.copy()
+        clone.merge(point)
+        clone.update(timeinterval, self.decay_rate)
+        if clone.radius <= self.mindist:
+            microcluster.merge(point)
+        else:
+            microcluster = self._get_closest_microcluster(point, 'outlier')
+            clone = microcluster.copy()
+            clone.merge(point)
+            clone.update(timeinterval, self.decay_rate)
+            if clone.radius <= self.mindist:
+                microcluster.merge(point)
+                microcluster.update()
+                if microcluster.weight > self.outlier_radius * self.minpts:
+                    microcluster.kind = 'core'
+            else:
+                newmc = MicroCluster('outlier', self.ndim, timestamp)
+                newmc.merge(point)
+                self.microclusters[self.nextmicrocluster] = newmc
+                self.nextmicrocluster += 1
+
+        self.timestamp = timestamp
