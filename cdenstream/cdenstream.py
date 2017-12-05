@@ -4,6 +4,7 @@ by Ruiz, Menasalvas and Spiliopoulou (2009)
 """
 
 
+from collections import namedtuple
 import numpy as np
 
 
@@ -61,3 +62,41 @@ class MicroCluster:
                 self.linear_dimensions += point
                 self.squared_dimensions += point ** 2
             self.buffer.clear()
+
+
+Constraint = namedtuple('Constraint', ['kind', 'weight'])
+
+class ConstraintMap:
+    """Represents the CO-MC matrix
+    """
+    def __init__(self):
+        self._constraints = {}
+
+    def __getitem__(self, microclusterpair):
+        pair = tuple(sorted(microclusterpair))
+        return self._constraints[pair]
+
+    def __contains__(self, microclusterpair):
+        pair = tuple(sorted(microclusterpair))
+        return pair in self._constraints
+
+    def _set(self, microclusterpair, constraint):
+        pair = tuple(sorted(microclusterpair))
+        self._constraints[pair] = constraint
+
+    def merge_constraint(self, mc1, mc2, kind, timestamp):
+        """Merges a constraint from the stream into the current mapping
+        The micro-clusters must be immutable, hashable, equatable IDs
+        Kind must be either 'mustlink' or 'cannotlink'
+        """
+
+        if (mc1, mc2) not in self:
+            constraint = Constraint(kind=kind, weight=timestamp)
+            self._set((mc1, mc2), constraint)
+        else:
+            constraint = self[mc1, mc2]
+            if constraint.kind == kind:
+                constraint.weight += 1
+            else:
+                constraint.kind = kind
+                constraint.weight = timestamp
