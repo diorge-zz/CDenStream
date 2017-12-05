@@ -17,7 +17,7 @@ class MicroCluster:
 
     def __init__(self, kind, ndim=2, timestamp=0):
         self.kind = kind
-        self.weight = 0
+        self.weight = 1
         self.linear_dimensions = np.zeros((ndim,))
         self.squared_dimensions = np.zeros((ndim,))
         self.timestamp = timestamp
@@ -35,6 +35,9 @@ class MicroCluster:
         """
         mcf1 = np.linalg.norm(self.linear_dimensions)
         mcf2 = np.linalg.norm(self.squared_dimensions)
+        squaredradius = (mcf2 / self.weight) - (mcf1 / self.weight) ** 2
+        if squaredradius <= 0:
+            return 0
         return np.sqrt((mcf2 / self.weight) - (mcf1 / self.weight) ** 2)
 
     def merge(self, point):
@@ -60,9 +63,10 @@ class MicroCluster:
             self.squared_dimensions *= decayment
         else:
             for point in self.buffer:
+                arr = np.array(point)
                 self.weight += 1
-                self.linear_dimensions += point
-                self.squared_dimensions += point ** 2
+                self.linear_dimensions += arr
+                self.squared_dimensions += arr ** 2
             self.buffer.clear()
 
     def copy(self):
@@ -73,6 +77,10 @@ class MicroCluster:
         new.linear_dimensions = np.copy(self.linear_dimensions)
         new.squared_dimensions = np.copy(self.squared_dimensions)
         new.buffer = [np.copy(pt) for pt in self.buffer]
+        return new
+
+    def __repr__(self):
+        return f'({self.kind}) centered at ({self.center}) with radius {self.radius}'
 
 
 Constraint = namedtuple('Constraint', ['kind', 'weight'])
@@ -178,31 +186,35 @@ class CDenStream:
         distances = [(k, np.linalg.norm(point - v.center))
                      for k, v in self.microclusters.items()]
         sorted_ids = sorted(distances, key=(lambda x: x[1]))
-        for mc_id in sorted_ids:
+        for mc_id, _ in sorted_ids:
             if 'kind' == 'any' or self.microclusters[mc_id].kind == kind:
                 return mc_id
 
-        raise ValueError('No clusters of wanted kind')
+        raise ValueError('No point of given kind')
 
     def point_arrival(self, point, timestamp):
         """Merges a new point from the stream into the micro-clusters
         """
         timeinterval = timestamp - self.timestamp
 
-        microcluster = self._get_closest_microcluster(point, 'core')
-        clone = microcluster.copy()
-        clone.merge(point)
-        clone.update(timeinterval, self.decay_rate)
-        if clone.radius <= self.mindist:
+        try:
+            microcluster_id = self._get_closest_microcluster(point, 'core')
+            microcluster = self.microclusters[microcluster_id]
+            clone = microcluster.copy()
+            clone.merge(point)
+            clone.update(timeinterval, self.decay_rate)
+            if clone.radius > self.mindist:
+                raise ValueError()
             microcluster.merge(point)
-        else:
-            microcluster = self._get_closest_microcluster(point, 'outlier')
+        except ValueError:
+            microcluster_id = self._get_closest_microcluster(point, 'outlier')
+            microcluster = self.microclusters[microcluster_id]
             clone = microcluster.copy()
             clone.merge(point)
             clone.update(timeinterval, self.decay_rate)
             if clone.radius <= self.mindist:
                 microcluster.merge(point)
-                microcluster.update()
+                microcluster.update(timeinterval, self.decay_rate)
                 if microcluster.weight > self.outlier_radius * self.minpts:
                     microcluster.kind = 'core'
             else:
@@ -231,9 +243,9 @@ class CDenStream:
     def query(self, constraint_threshold=0.2):
         """Applies C-DBScan to current core-micro-clusters
         """
-        points = [microcluster.center()
-                  for microcluster in self.microclusters.values()
-                  if microcluster.kind == 'core']
+        points = np.array([microcluster.center
+                           for microcluster in self.microclusters.values()
+                           if microcluster.kind == 'core'])
         constraints = list(self.constraints.get_constraints(constraint_threshold))
         mustlink = set(pair for pair, kind in constraints
                        if kind == 'mustlink')
