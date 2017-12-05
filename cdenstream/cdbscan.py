@@ -100,9 +100,9 @@ def create_local_clusters(hyperparam, state):
     state['next_cluster'] = next_cluster
 
 
-def merge_clusters(cluster_to_point, point_to_cluster, cannotlink,
-                   new_cluster_id, new_cluster_kind,
-                   *clusters_to_merge):
+def try_merge_clusters(cluster_to_point, point_to_cluster, cannotlink,
+                       new_cluster_id, new_cluster_kind,
+                       *clusters_to_merge):
     """Merges two or more clusters into a single new cluster
     containing all the points.
     Returns if the merge is allowed by cannot-link constraints
@@ -141,24 +141,30 @@ def merge_mustlink_constraints(hyperparam, state):
         if cluster1 == cluster2:
             continue
 
+        should_delete_cluster1 = False
         if cluster1 != -1:
             points_of_c1 = cluster_to_point[cluster1]
-            del cluster_to_point[cluster1]
+            should_delete_cluster1 = True
         else:
             points_of_c1 = Cluster('noise', [ml1])
 
+        should_delete_cluster2 = False
         if cluster2 != -1:
             points_of_c2 = cluster_to_point[cluster2]
-            del cluster_to_point[cluster2]
+            should_delete_cluster2 = True
         else:
             points_of_c2 = Cluster('noise', [ml2])
 
-        merge_clusters(cluster_to_point, point_to_cluster,
-                       hyperparam['cannotlink'], next_cluster,
-                       'alpha', points_of_c1, points_of_c2)
-        next_cluster += 1
-
-    state['next_cluster'] = next_cluster
+        clusters_merged = try_merge_clusters(cluster_to_point, point_to_cluster,
+                                             hyperparam['cannotlink'], next_cluster,
+                                             'alpha', points_of_c1, points_of_c2)
+        if clusters_merged:
+            next_cluster += 1
+            state['next_cluster'] = next_cluster
+            if should_delete_cluster1:
+                del cluster_to_point[cluster1]
+            if should_delete_cluster2:
+                del cluster_to_point[cluster2]
 
 
 def merge_local_into_alpha(hyperparam, state):
@@ -191,11 +197,11 @@ def merge_local_into_alpha(hyperparam, state):
 
                 closest_alpha = reachable_alpha[np.argmin(dist_to_reachable_alpha)]
 
-                canmerge = merge_clusters(cluster_to_point, point_to_cluster,
-                                          hyperparam['cannotlink'],
-                                          next_cluster, 'alpha',
-                                          localcluster,
-                                          cluster_to_point[closest_alpha])
+                canmerge = try_merge_clusters(cluster_to_point, point_to_cluster,
+                                              hyperparam['cannotlink'],
+                                              next_cluster, 'alpha',
+                                              localcluster,
+                                              cluster_to_point[closest_alpha])
                 if canmerge:
                     del cluster_to_point[index_of_lc]
                     del cluster_to_point[closest_alpha]

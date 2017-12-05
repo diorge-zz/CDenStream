@@ -162,7 +162,10 @@ def test_connection_through_alpha():
 
 def test_merge_mustlink_when_cannotlink():
     """
-    Gib me better name and description?
+    Tests whether the algorithm handles the following situtation correctly:
+    There are 2 clusters c1={a,b,c} and c2{d,e,f} with constraints
+    must_link={(a, d), (b, e)} and cannot_link={c,f}.
+    The algorithm should not merge the clusters c1 and c2 AND should not crash (obviously).
     """
     points = np.array([[0, 0], [0, 1], [1, 0],  # cluster 1
                        [10, 10], [11, 10], [10, 11]])  # cluster 2
