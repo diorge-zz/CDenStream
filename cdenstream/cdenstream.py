@@ -207,17 +207,19 @@ class CDenStream:
                 raise ValueError()
             microcluster.merge(point)
         except ValueError:
-            microcluster_id = self._get_closest_microcluster(point, 'outlier')
-            microcluster = self.microclusters[microcluster_id]
-            clone = microcluster.copy()
-            clone.merge(point)
-            clone.update(timeinterval, self.decay_rate)
-            if clone.radius <= self.mindist:
+            try:
+                microcluster_id = self._get_closest_microcluster(point, 'outlier')
+                microcluster = self.microclusters[microcluster_id]
+                clone = microcluster.copy()
+                clone.merge(point)
+                clone.update(timeinterval, self.decay_rate)
+                if clone.radius > self.mindist:
+                    raise ValueError()
                 microcluster.merge(point)
                 microcluster.update(timeinterval, self.decay_rate)
                 if microcluster.weight > self.outlier_radius * self.minpts:
                     microcluster.kind = 'core'
-            else:
+            except ValueError:
                 newmc = MicroCluster('outlier', self.ndim, timestamp)
                 newmc.merge(point)
                 self.microclusters[self.nextmicrocluster] = newmc
